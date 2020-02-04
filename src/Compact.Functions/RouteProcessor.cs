@@ -6,15 +6,20 @@ using Newtonsoft.Json;
 using System;
 using System.IO;
 using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace Compact.Functions
 {
     public static class RouteProcessor
     {
+        private static ILogger _logger;
+
         [FunctionName("NewRouteProcessor")]
         public static async Task RunAsync([BlobTrigger("routes/{name}", Connection = "StorageConnectionString")] Stream routeStream, string name, ILogger log)
         {
+            _logger = log;
+
             var route = GetRoute(routeStream);
             log.LogInformation($"Detected new Route: {name}");
 
@@ -29,11 +34,12 @@ namespace Compact.Functions
                 try
                 {
                     log.LogInformation($"Scanning Link: {link.Target}");
-                    SourceLinkMetadata(link);
+                    await SourceLinkMetadataAsync(link);
                     log.LogInformation($"Applied Title: {link.Title}");
                 }
                 catch (Exception ex)
                 {
+                    var exceptionType = ex.GetType();
                     log.LogInformation($"Reporting dead link: {ex.Message}");
                     await GenerateReportAsync(route.Id);
                 }
@@ -54,17 +60,51 @@ namespace Compact.Functions
             return result;
         }
 
-        private static void SourceLinkMetadata(LinkModel link)
+        private static async Task SourceLinkMetadataAsync(LinkModel link)
         {
             if (!link.Target.StartsWith("http"))
             {
                 link.Target = $"https://{link.Target}";
             }
 
-            var webGet = new HtmlWeb();
-            var document = webGet.Load(link.Target);
+            var httpClient = new HttpClient();
+            httpClient.Timeout = new TimeSpan(0, 0, 20);
 
-            link.Title = document.DocumentNode.SelectSingleNode("html/head/title").InnerText;
+            var responseMessage = await httpClient.GetAsync(link.Target);
+
+            if (responseMessage.IsSuccessStatusCode)
+            {
+                string responseString = string.Empty;
+
+                try
+                {
+                    var response = await responseMessage.Content.ReadAsByteArrayAsync();
+                    var encoding = responseMessage.Content.Headers.ContentType.CharSet;
+                    if ("UTF-8".Equals(encoding, StringComparison.OrdinalIgnoreCase) || "\"utf-8\"".Equals(encoding, StringComparison.OrdinalIgnoreCase) || encoding == null)
+                    {
+                        responseString = Encoding.UTF8.GetString(response, 0, response.Length - 1);
+                    }
+                    else
+                    {
+                        responseString = Encoding.Unicode.GetString(response, 0, response.Length - 1);
+                    }
+                    
+
+                    var document = new HtmlDocument();
+                    document.LoadHtml(responseString);
+
+                    link.Title = document.DocumentNode.SelectSingleNode("html/head/title").InnerText;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogInformation($"Unable to determine page title from HTML: {responseString}, Exception: {ex.Message}");
+                    link.Title = "Unable to fetch Page Title";
+                }
+            }
+            else
+            {
+                throw new HttpRequestException($"Status Code: {responseMessage.StatusCode}");
+            }
         }
 
         private static async Task UpdateRouteFileAsync(string name, RouteModel route)
