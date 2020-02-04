@@ -3,6 +3,7 @@
   "Values": {
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
     "FUNCTIONS_WORKER_RUNTIME": "dotnet",
-    "StorageConnectionString": "REPLACED_BY_AZURE"
+    "StorageConnectionString": "REPLACED_BY_AZURE",
+    "ApiBaseUrl": "http://cmpct-api-tmp.azurewebsites.net/api/"
   }
 }

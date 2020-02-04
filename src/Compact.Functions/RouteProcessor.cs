@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
 using System.IO;
+using System.Net.Http;
 using System.Threading.Tasks;
 
 namespace Compact.Functions
@@ -25,12 +26,18 @@ namespace Compact.Functions
 
             foreach (var link in route.Links)
             {
-                log.LogInformation($"Scanning Link: {link.Target}");
-                SourceLinkMetadata(link);
-                log.LogInformation($"Applied Title: {link.Title}");
+                try
+                {
+                    log.LogInformation($"Scanning Link: {link.Target}");
+                    SourceLinkMetadata(link);
+                    log.LogInformation($"Applied Title: {link.Title}");
+                }
+                catch (Exception ex)
+                {
+                    log.LogInformation($"Reporting dead link: {ex.Message}");
+                    await GenerateReportAsync(route.Id);
+                }
             }
-
-            route.ProcessDate = DateTime.UtcNow;
 
             await UpdateRouteFileAsync(name, route);
             log.LogInformation($"Route processed: {route.Id}");
@@ -62,11 +69,26 @@ namespace Compact.Functions
 
         private static async Task UpdateRouteFileAsync(string name, RouteModel route)
         {
-            var storageConnectionString = System.Environment.GetEnvironmentVariable("StorageConnectionString");
+            route.ProcessDate = DateTime.UtcNow;
+
+            var storageConnectionString = Environment.GetEnvironmentVariable("StorageConnectionString");
 
             var azureStorageManager = new AzureStorageManager(storageConnectionString);
 
             await azureStorageManager.StoreObject("routes", name, route);
+        }
+
+        private static async Task GenerateReportAsync(string routeId)
+        {
+            var apiBaseUrl = Environment.GetEnvironmentVariable("ApiBaseUrl");
+            var httpClient = new HttpClient();
+
+            var requestModel = new ReportRequestModel
+            {
+                RouteId = routeId
+            };
+
+            await httpClient.PostAsJsonAsync($"{apiBaseUrl}reports", requestModel);
         }
     }
 }
