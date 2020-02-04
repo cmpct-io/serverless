@@ -25,8 +25,9 @@ namespace Compact.Functions
 
             foreach (var link in route.Links)
             {
+                log.LogInformation($"Scanning Link: {link.Target}");
                 SourceLinkMetadata(link);
-                log.LogInformation($"Appended title: {link.Title} to link: {link.Target}");
+                log.LogInformation($"Applied Title: {link.Title}");
             }
 
             route.ProcessDate = DateTime.UtcNow;
