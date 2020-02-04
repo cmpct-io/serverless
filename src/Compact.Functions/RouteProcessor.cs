@@ -45,6 +45,11 @@ namespace Compact.Functions
 
         private static void SourceLinkMetadata(LinkModel link)
         {
+            if (!link.Target.StartsWith("http"))
+            {
+                link.Target = $"https://{link.Target}";
+            }
+
             var webGet = new HtmlWeb();
             var document = webGet.Load(link.Target);
 
