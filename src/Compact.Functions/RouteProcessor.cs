@@ -3,6 +3,7 @@ using HtmlAgilityPack;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using System;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -16,17 +17,19 @@ namespace Compact.Functions
             var route = GetRoute(routeStream);
             log.LogInformation($"Detected new Route: {name}");
 
+            if (route.ProcessDate.HasValue)
+            {
+                log.LogInformation("Route has already been processed.");
+                return;
+            }
+
             foreach (var link in route.Links)
             {
-                // We don't need to process a file which has already been processed
-                if (!string.IsNullOrEmpty(link.Title))
-                {
-                    return;
-                }
-
                 SourceLinkMetadata(link);
                 log.LogInformation($"Appended title: {link.Title} to link: {link.Target}");
             }
+
+            route.ProcessDate = DateTime.UtcNow;
 
             await UpdateRouteFileAsync(name, route);
             log.LogInformation($"Route processed: {route.Id}");

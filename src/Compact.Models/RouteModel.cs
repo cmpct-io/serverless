@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace Compact.Models
 {
@@ -21,5 +22,10 @@ namespace Compact.Models
         /// A password which must be provided to download this route
         /// </summary>
         public string Password { get; set; }
+
+        /// <summary>
+        /// Record the date that the route was processed, so we can skip it in future
+        /// </summary>
+        public DateTime? ProcessDate { get; set; }
     }
 }
