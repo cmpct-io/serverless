@@ -12,7 +12,7 @@ namespace Compact.Functions
     public static class RouteProcessor
     {
         [FunctionName("NewRouteProcessor")]
-        public static async Task RunAsync([BlobTrigger("tests/{name}", Connection = "StorageConnectionString")] Stream routeStream, string name, ILogger log)
+        public static async Task RunAsync([BlobTrigger("routes/{name}", Connection = "StorageConnectionString")] Stream routeStream, string name, ILogger log)
         {
             var route = GetRoute(routeStream);
             log.LogInformation($"Detected new Route: {name}");
@@ -65,7 +65,7 @@ namespace Compact.Functions
 
             var azureStorageManager = new AzureStorageManager(storageConnectionString);
 
-            await azureStorageManager.StoreObject("tests", name, route);
+            await azureStorageManager.StoreObject("routes", name, route);
         }
     }
 }
