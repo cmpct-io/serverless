@@ -31,41 +31,42 @@ namespace Compact.Functions.Services
 
             var responseMessage = await httpClient.GetAsync(link.Target);
 
-            if (responseMessage.IsSuccessStatusCode)
-            {
-                string responseString = string.Empty;
-
-                try
-                {
-                    var response = await responseMessage.Content.ReadAsByteArrayAsync();
-                    var encoding = responseMessage.Content.Headers.ContentType.CharSet;
-                    if ("UTF-8".Equals(encoding, StringComparison.OrdinalIgnoreCase) || "\"utf-8\"".Equals(encoding, StringComparison.OrdinalIgnoreCase) || encoding == null)
-                    {
-                        responseString = Encoding.UTF8.GetString(response, 0, response.Length - 1);
-                    }
-                    else
-                    {
-                        responseString = Encoding.Unicode.GetString(response, 0, response.Length - 1);
-                    }
-
-                    var document = new HtmlDocument();
-                    document.LoadHtml(responseString);
-
-                    link.Title = document.DocumentNode.SelectSingleNode("html/head/title").InnerText;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogInformation($"Unable to determine page title from HTML: {responseString}, Exception: {ex.Message}");
-                    link.Title = string.Empty;
-                }
-                finally
-                {
-                    _logger.LogInformation($"Applied Title: {link.Title}");
-                }
-            }
-            else
+            if (!responseMessage.IsSuccessStatusCode)
             {
                 throw new HttpRequestException($"Status Code: {responseMessage.StatusCode}");
+            }
+
+            string responseString = string.Empty;
+
+            try
+            {
+                var response = await responseMessage.Content.ReadAsByteArrayAsync();
+                var encoding = responseMessage.Content.Headers.ContentType.CharSet;
+                if ("UTF-8".Equals(encoding, StringComparison.OrdinalIgnoreCase) || "\"utf-8\"".Equals(encoding, StringComparison.OrdinalIgnoreCase) || encoding == null)
+                {
+                    responseString = Encoding.UTF8.GetString(response, 0, response.Length - 1);
+                }
+                else
+                {
+                    responseString = Encoding.Unicode.GetString(response, 0, response.Length - 1);
+                }
+
+                var document = new HtmlDocument();
+                document.LoadHtml(responseString);
+
+                link.Title = document.DocumentNode.SelectSingleNode("html/head/title").InnerText;
+            }
+            catch (Exception ex)
+            {
+                link.Title = string.Empty;
+
+                _logger.LogInformation($"Unable to determine page title from HTML: {responseString}, Exception: {ex.Message}");
+
+                throw ex;
+            }
+            finally
+            {
+                _logger.LogInformation($"Applied Title: {link.Title}");
             }
         }
     }

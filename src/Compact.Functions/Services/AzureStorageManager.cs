@@ -42,6 +42,26 @@ namespace Compact.Functions
             return cloudBlobContainer.Uri.AbsoluteUri + "/" + fileName;
         }
 
+        public async Task<string> StoreFile(string containerName, string fileName, byte[] fileContent)
+        {
+            var storageAccount = ConnectStorageAccount();
+            var cloudBlobContainer = FetchBlobContainer(storageAccount, containerName);
+            await cloudBlobContainer.CreateIfNotExistsAsync();
+
+            BlobContainerPermissions permissions = new BlobContainerPermissions
+            {
+                PublicAccess = BlobContainerPublicAccessType.Blob,
+            };
+
+            await cloudBlobContainer.SetPermissionsAsync(permissions);
+
+            CloudBlockBlob cloudBlockBlob = cloudBlobContainer.GetBlockBlobReference(fileName);
+
+            await cloudBlockBlob.UploadFromByteArrayAsync(fileContent, 0, fileContent.Length);
+
+            return cloudBlobContainer.Uri.AbsoluteUri + "/" + fileName;
+        }
+
         private CloudStorageAccount ConnectStorageAccount()
         {
             if (CloudStorageAccount.TryParse(_storageConnectionString, out CloudStorageAccount storageAccount))

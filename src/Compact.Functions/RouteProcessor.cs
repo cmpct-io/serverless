@@ -13,6 +13,7 @@ namespace Compact.Functions
         private static LinkCrawler _linkCrawler;
         private static RouteReportPoster _reportPoster;
         private static RouteStorageManager _storageManager;
+        private static ScreenshotCaptureService _screenshotCapture;
 
         [FunctionName("NewRouteProcessor")]
         public static async Task RunAsync([BlobTrigger("routes/{name}", Connection = "StorageConnectionString")] Stream routeStream, string name, ILogger logger)
@@ -32,13 +33,14 @@ namespace Compact.Functions
                 try
                 {
                     await _linkCrawler.AppendLinkMetadata(link);
+                    await _screenshotCapture.CaptureScreenshotAsync(route.Id, link);
                 }
                 catch (Exception ex)
                 {
                     // Pause automatic reports for now while the feature is considered
                     // await _reportPoster.GenerateReportAsync(route.Id, ex.Message);
 
-                    _logger.LogInformation($"Unable to append metadata: {ex.Message}");
+                    _logger.LogInformation($"Failed to complete route processing: {ex.Message}");
                 }
             }
 
@@ -53,6 +55,7 @@ namespace Compact.Functions
             _linkCrawler = new LinkCrawler(logger);
             _reportPoster = new RouteReportPoster(logger);
             _storageManager = new RouteStorageManager(logger);
+            _screenshotCapture = new ScreenshotCaptureService(logger);
         }
     }
 }
