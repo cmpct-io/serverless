@@ -45,6 +45,8 @@ namespace Compact.Functions.Services
                     await azManager.StoreFile("screenshots", screenshotFileName, file.Bytes);
 
                     link.ScreenshotFileName = screenshotFileName;
+
+                    _logger.LogInformation($"Saved Link Screenshot: {screenshotFileName}");
                 }
             }
             catch (Exception ex)
