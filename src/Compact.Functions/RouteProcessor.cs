@@ -1,7 +1,7 @@
 using Compact.Functions.Services;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Extensions.Logging;
-using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -10,10 +10,9 @@ namespace Compact.Functions
     public static class RouteProcessor
     {
         private static ILogger _logger;
-        private static LinkCrawler _linkCrawler;
+        private static LinkProcessor _linkProcessor;
         private static RouteReportPoster _reportPoster;
         private static RouteStorageManager _storageManager;
-        private static ScreenshotCaptureService _screenshotCapture;
 
         [FunctionName("NewRouteProcessor")]
         public static async Task RunAsync([BlobTrigger("routes/{name}", Connection = "StorageConnectionString")] Stream routeStream, string name, ILogger logger)
@@ -28,21 +27,14 @@ namespace Compact.Functions
                 return;
             }
 
+            var taskList = new List<Task>();
+
             foreach (var link in route.Links)
             {
-                try
-                {
-                    await _linkCrawler.AppendLinkMetadata(link);
-                    await _screenshotCapture.CaptureScreenshotAsync(route.Id, link);
-                }
-                catch (Exception ex)
-                {
-                    // Pause automatic reports for now while the feature is considered
-                    // await _reportPoster.GenerateReportAsync(route.Id, ex.Message);
-
-                    _logger.LogInformation($"Failed to complete route processing: {ex.Message}");
-                }
+                taskList.Add(_linkProcessor.ProcessAsync(route.Id, link));
             }
+
+            Task.WaitAll(taskList.ToArray());
 
             await _storageManager.UpdateRouteFileAsync(name, route);
 
@@ -52,10 +44,9 @@ namespace Compact.Functions
         private static void InitialiseDependencies(ILogger logger)
         {
             _logger = logger;
-            _linkCrawler = new LinkCrawler(logger);
+            _linkProcessor = new LinkProcessor(logger);
             _reportPoster = new RouteReportPoster(logger);
             _storageManager = new RouteStorageManager(logger);
-            _screenshotCapture = new ScreenshotCaptureService(logger);
         }
     }
 }
